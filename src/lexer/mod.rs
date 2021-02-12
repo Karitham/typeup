@@ -20,25 +20,27 @@ pub enum Token {
     Char(char),
 }
 
-fn tok(c: char) -> Token {
-    match c {
-        '#' => Token::NumberSign,
-        '*' => Token::Star,
-        '=' => Token::Equal,
-        '[' => Token::LSquareBracket,
-        ']' => Token::RSquareBracket,
-        '{' => Token::LCurlyBracket,
-        '}' => Token::RCurlyBracket,
-        '|' => Token::Pipe,
-        '-' => Token::Dash,
-        ':' => Token::DoubleDot,
-        '/' => Token::Slash,
-        '_' => Token::Underscore,
-        '`' => Token::Backtick,
-        '\n' => Token::Newline,
-        '!' => Token::Exclamation,
-        '\r' | '\t' | ' ' => Token::Whitespace(c),
-        _ => Token::Char(c),
+impl From<char> for Token {
+    fn from(c: char) -> Self {
+        match c {
+            '#' => Token::NumberSign,
+            '*' => Token::Star,
+            '=' => Token::Equal,
+            '[' => Token::LSquareBracket,
+            ']' => Token::RSquareBracket,
+            '{' => Token::LCurlyBracket,
+            '}' => Token::RCurlyBracket,
+            '|' => Token::Pipe,
+            '-' => Token::Dash,
+            ':' => Token::DoubleDot,
+            '/' => Token::Slash,
+            '_' => Token::Underscore,
+            '`' => Token::Backtick,
+            '\n' => Token::Newline,
+            '!' => Token::Exclamation,
+            '\r' | '\t' | ' ' => Token::Whitespace(c),
+            _ => Token::Char(c),
+        }
     }
 }
 
@@ -67,7 +69,7 @@ pub fn tokenize(s: String) -> Vec<(Token, Position)> {
     s.chars()
         .map(|c| {
             index += 1;
-            let t = tok(c);
+            let t = Token::from(c);
             match t {
                 Token::Newline => {
                     index = 0;
