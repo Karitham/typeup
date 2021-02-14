@@ -9,7 +9,7 @@ pub enum Token {
     RCurlyBracket,
     Pipe,
     Dash,
-    DoubleDot,
+    Colon,
     Slash,
     Underscore,
     Exclamation,
@@ -32,7 +32,7 @@ impl From<char> for Token {
             '}' => Token::RCurlyBracket,
             '|' => Token::Pipe,
             '-' => Token::Dash,
-            ':' => Token::DoubleDot,
+            ':' => Token::Colon,
             '/' => Token::Slash,
             '_' => Token::Underscore,
             '`' => Token::Backtick,
@@ -44,10 +44,16 @@ impl From<char> for Token {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Position {
-    line: u32,
-    index: u32,
+    pub line: u32,
+    pub index: u32,
+}
+
+impl Position {
+    pub fn new(line: u32, index: u32) -> Self {
+        Self { line, index }
+    }
 }
 
 impl std::fmt::Display for Position {
@@ -62,22 +68,33 @@ impl std::fmt::Display for Token {
     }
 }
 
-pub fn tokenize(s: String) -> Vec<(Token, Position)> {
-    let mut index: u32 = 0;
-    let mut line: u32 = 0;
+pub fn tokenize(s: &String) -> Vec<(Token, Position)> {
+    let mut index = 1;
+    let mut line = 1;
 
-    s.chars()
+    let mut tokens: Vec<(Token, Position)> = s
+        .chars()
         .map(|c| {
-            index += 1;
-            let t = Token::from(c);
-            match t {
+            let tok = Token::from(c);
+            match tok {
                 Token::Newline => {
-                    index = 0;
+                    let new_lined = (tok, Position::new(line, index));
+                    index = 1;
                     line += 1;
-                    (t, Position { index, line })
+
+                    new_lined
                 }
-                _ => (t, Position { index, line }),
+                _ => {
+                    let token = (tok, Position::new(line, index));
+                    index += 1;
+
+                    token
+                }
             }
         })
-        .collect()
+        .collect();
+
+    tokens.push((Token::Eof, Position::new(line, index)));
+
+    tokens
 }
