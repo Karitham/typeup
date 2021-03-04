@@ -11,11 +11,11 @@ pub enum Kind<'a> {
     InlineCode(&'a str),
     UnorderedList(Vec<&'a str>),
     OrderedList(Vec<&'a str>),
-    Quote((&'a str, &'a str)),
+    Quote(&'a str),
     Italic(&'a str),
     Bold(&'a str),
     Image((&'a str, &'a str)),
-    Link((&'a str, &'a str)),
+    Link((&'a str, Option<&'a str>)),
     Text(&'a str),
 }
 
@@ -93,6 +93,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    /// parse_title
     pub fn parse_title(&'a mut self) -> Result<Kind<'a>, ParseError> {
         if self.s[self.pos..].starts_with(syntax::TITLE) {
             self.off += syntax::TITLE.len();
@@ -100,7 +101,31 @@ impl<'a> Lexer<'a> {
             self.eat_whitespace();
             Ok(Kind::Title(self.get_same_line()))
         } else {
-            Err(ParseError::new("invalid title format", self.cursor))
+            Err(ParseError::new("Invalid title format", self.cursor))
+        }
+    }
+
+    /// parse_quote parses the simple quote, starting with a `|`
+    pub fn parse_quote(&'a mut self) -> Result<Kind<'a>, ParseError> {
+        if self.s[self.pos..].starts_with(syntax::QUOTE_START) {
+            self.off += syntax::QUOTE_START.len();
+            self.eat_whitespace();
+            Ok(Kind::Quote(self.get_same_line()))
+        } else {
+            Err(ParseError::new("Invalid quote format", self.cursor))
+        }
+    }
+
+    /// parse_simple_link parses basic links, without any other informations
+    pub fn parse_simple_link(&'a mut self) -> Result<Kind<'a>, ParseError> {
+        if self.s[self.pos..].starts_with('[') {
+            self.off += 1;
+            self.eat_whitespace();
+            let link = self.get_until("]");
+
+            Ok(Kind::Link((link.trim_end(), None)))
+        } else {
+            Err(ParseError::new("Invalid link format", self.cursor))
         }
     }
 
@@ -112,7 +137,10 @@ impl<'a> Lexer<'a> {
 
     /// keep cursor in sync moves the cursor
     fn keep_cursor_in_sync(&mut self) {
-        if util::is_not_newline(self.peek().unwrap()) {
+        if util::is_not_newline(match self.peek() {
+            Some(v) => v,
+            None => &b'\0',
+        }) {
             self.cursor.index += 1
         } else {
             self.newline_cursor()
@@ -125,16 +153,34 @@ impl<'a> Lexer<'a> {
         self.cursor.index = 1;
     }
 
-    /// get_while returns a &str containing the elements it iterated over
+    /// get_while returns a &str containing the elements it iterated over,
     /// it also moves the cursor with an index.
     fn get_while<F>(&mut self, cond: F) -> &'a str
     where
         F: Fn(&u8) -> bool,
     {
-        while cond(&self.s.as_bytes()[self.pos + self.off]) {
+        while let Some(b) = self.s.as_bytes().get(self.pos + self.off) {
+            if cond(b) {
+                break;
+            }
             self.off += 1;
             self.keep_cursor_in_sync();
         }
+        &self.s[self.slice_and_move()]
+    }
+
+    /// get_until returns the str until it meets a specific pattern
+    fn get_until(&mut self, pat: &str) -> &'a str {
+        let cut = match self.s[self.pos + self.off..]
+            .splitn(2, pat)
+            .collect::<Vec<&str>>()
+            .first()
+        {
+            Some(&s) => s,
+            None => &self.s[self.pos + self.off..],
+        };
+
+        self.off += cut.len();
         &self.s[self.slice_and_move()]
     }
 
@@ -174,7 +220,7 @@ impl<'a> Lexer<'a> {
     /// get_same_line returns the text until it meets a newline
     fn get_same_line(&mut self) -> &'a str {
         self.newline_cursor();
-        self.get_while(util::is_not_newline)
+        self.get_while(|b| b == &b'\n')
     }
 }
 
@@ -189,4 +235,5 @@ mod util {
 
 mod syntax {
     pub(crate) const TITLE: &str = "=#";
+    pub(crate) const QUOTE_START: &str = "|";
 }

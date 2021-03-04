@@ -37,4 +37,36 @@ mod tests {
         let k = l.parse_title().unwrap();
         assert_eq!(k, lexer::Kind::Title("This is a document title"))
     }
+
+    #[test]
+    fn lex_quote() {
+        let text = "| This is a quote";
+        let mut l = lexer::Lexer::new(text);
+        let k = l.parse_quote().unwrap();
+        assert_eq!(k, lexer::Kind::Quote("This is a quote"))
+    }
+
+    #[test]
+    fn lex_link() {
+        // No whitespace
+        let text = "[http://nb.kar.wtf]";
+        let mut l = lexer::Lexer::new(text);
+        let k = l.parse_simple_link().unwrap();
+        assert_eq!(k, lexer::Kind::Link(("http://nb.kar.wtf", None)));
+
+        // Whitespace
+        let text = "[ http://nb.kar.wtf ]";
+        let mut l = lexer::Lexer::new(text);
+        let k = l.parse_simple_link().unwrap();
+        assert_eq!(k, lexer::Kind::Link(("http://nb.kar.wtf", None)));
+
+        // Error
+        let text = "http://nb.kar.wtf";
+        let mut l = lexer::Lexer::new(text);
+        let k = l.parse_simple_link().unwrap_err();
+        assert_eq!(
+            k,
+            lexer::ParseError::new("Invalid link format", lexer::Position::new(1, 1))
+        );
+    }
 }
