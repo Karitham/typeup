@@ -69,4 +69,33 @@ mod tests {
             lexer::ParseError::new("Invalid link format", lexer::Position::new(1, 1))
         );
     }
+
+    #[test]
+    fn lex_table() {
+        let result = lexer::Kind::Table(vec![
+            vec!["heading 1", "heading 2", "heading 3"],
+            vec!["sub 1", "sub 2", "sub 3"],
+        ]);
+
+        // With a comma as the separator
+        let text = r###"#,{
+        heading 1, heading 2, heading 3
+        sub 1, sub 2, sub 3
+        }
+        "###;
+        let mut l = lexer::Lexer::new(text);
+        let k = l.parse_table().unwrap();
+        assert_eq!(k, result);
+
+        // With 2 pipes
+        let text = r###"#||{
+        heading 1|| heading 2  || heading 3
+        sub 1 || sub 2 || sub 3
+        }
+        "###;
+
+        let mut l = lexer::Lexer::new(text);
+        let k = l.parse_table().unwrap();
+        assert_eq!(k, result);
+    }
 }

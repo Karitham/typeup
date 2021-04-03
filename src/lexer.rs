@@ -17,6 +17,7 @@ pub enum Kind<'a> {
     Image((&'a str, &'a str)),
     Link((&'a str, Option<&'a str>)),
     Text(&'a str),
+    Table(Vec<Vec<&'a str>>),
 }
 
 #[derive(Debug)]
@@ -99,6 +100,7 @@ impl<'a> Lexer<'a> {
             self.off += syntax::TITLE.len();
             self.move_up_to_offset();
             self.eat_whitespace();
+
             Ok(Kind::Title(self.get_same_line()))
         } else {
             Err(ParseError::new("Invalid title format", self.cursor))
@@ -110,6 +112,7 @@ impl<'a> Lexer<'a> {
         if self.s[self.pos..].starts_with(syntax::QUOTE_START) {
             self.off += syntax::QUOTE_START.len();
             self.eat_whitespace();
+
             Ok(Kind::Quote(self.get_same_line()))
         } else {
             Err(ParseError::new("Invalid quote format", self.cursor))
@@ -126,6 +129,33 @@ impl<'a> Lexer<'a> {
             Ok(Kind::Link((link.trim_end(), None)))
         } else {
             Err(ParseError::new("Invalid link format", self.cursor))
+        }
+    }
+
+    /// parse_table parses the whole table, handles custom separator
+    pub fn parse_table(&'a mut self) -> Result<Kind<'a>, ParseError> {
+        if self.s[self.pos..].starts_with('#') {
+            self.off += 1;
+            self.eat_whitespace();
+
+            let sep = self.get_until(&"{");
+            self.off += 1;
+            self.eat_whitespace();
+
+            Ok(Kind::Table(
+                self.get_until(&"}")
+                    .lines()
+                    .map(|s| {
+                        s.split(sep)
+                            .map(|s| s.trim())
+                            .filter(|s| *s != "")
+                            .collect::<Vec<&str>>()
+                    })
+                    .filter(|l| l.len() != 0)
+                    .collect::<Vec<Vec<&str>>>(),
+            ))
+        } else {
+            Err(ParseError::new("Invalid table format", self.cursor))
         }
     }
 
@@ -229,7 +259,7 @@ mod util {
         *b != b'\n'
     }
     pub(crate) fn is_whitespace(b: &u8) -> bool {
-        *b == b'\r' || *b == b' ' || *b == b'\t'
+        *b == b'\r' || *b == b' ' || *b == b'\t' || *b == b'\n'
     }
 }
 
